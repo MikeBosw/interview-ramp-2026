@@ -1,0 +1,12 @@
+{
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.10",
+		"typescript": "^6.0.2"
+	},
+	"name": "javascript",
+	"private": true,
+	"workspaces": [
+		"foo",
+		"bar"
+	]
+}

@@ -1,0 +1,99 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		},
+		"enabled": true
+	},
+	"files": {
+		"ignoreUnknown": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"a11y": {
+				"recommended": true
+			},
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "error",
+				"noExcessiveLinesPerFunction": "error",
+				"noVoid": "error",
+				"recommended": true,
+				"useSimplifiedLogicExpression": "error"
+			},
+			"correctness": {
+				"noNodejsModules": "error",
+				"noUnusedFunctionParameters": "error",
+				"noUnusedImports": "error",
+				"noUnusedPrivateClassMembers": "error",
+				"noUnusedVariables": "error",
+				"recommended": true,
+				"useImportExtensions": "error"
+			},
+			"performance": {
+				"recommended": true
+			},
+			"recommended": true,
+			"security": {
+				"recommended": true
+			},
+			"style": {
+				"noDefaultExport": "error",
+				"noEnum": "error",
+				"noNamespace": "error",
+				"noNegationElse": "error",
+				"noNonNullAssertion": "error",
+				"noParameterAssign": "error",
+				"noRestrictedGlobals": "error",
+				"noShoutyConstants": "error",
+				"recommended": true,
+				"useAsConstAssertion": "error",
+				"useBlockStatements": "error",
+				"useCollapsedElseIf": "error",
+				"useConsistentArrayType": "error",
+				"useConst": "error",
+				"useDefaultParameterLast": "error",
+				"useDefaultSwitchClause": "error",
+				"useExplicitLengthCheck": "error",
+				"useExportType": "error",
+				"useForOf": "error",
+				"useImportType": "error",
+				"useNamingConvention": "error",
+				"useShorthandAssign": "error",
+				"useShorthandFunctionType": "error",
+				"useTemplate": "error",
+				"useThrowNewError": "error",
+				"useThrowOnlyError": "error"
+			},
+			"suspicious": {
+				"noConsole": "error",
+				"noEvolvingTypes": "error",
+				"noExplicitAny": "error",
+				"noImplicitAnyLet": "error",
+				"noSkippedTests": "error",
+				"recommended": true,
+				"useAwait": "error",
+				"useErrorMessage": "error",
+				"useIsArray": "error",
+				"useStrictMode": "error"
+			}
+		}
+	},
+	"vcs": {
+		"clientKind": "git",
+		"enabled": true,
+		"useIgnoreFile": true
+	}
+}

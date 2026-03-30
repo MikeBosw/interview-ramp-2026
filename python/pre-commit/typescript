@@ -23,6 +23,7 @@ bun --version >/dev/null 2>&1 ||
     false
   )
 
-bunx tsc --noEmit
+bunx tsc --build
+bunx biome check --fix .
 
 set +eu

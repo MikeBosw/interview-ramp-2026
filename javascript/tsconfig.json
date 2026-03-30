@@ -1,0 +1,41 @@
+{
+	"compilerOptions": {
+		/* Strict type checking — every possible flag */
+		"strict": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"strictPropertyInitialization": true,
+		"strictBuiltinIteratorReturn": true,
+		"noImplicitThis": true,
+		"useUnknownInCatchVariables": true,
+		"alwaysStrict": true,
+		"exactOptionalPropertyTypes": true,
+
+		/* Additional strictness beyond "strict" */
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"allowUnusedLabels": false,
+		"allowUnreachableCode": false,
+
+		/* Module and emit */
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"target": "ESNext",
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": false,
+		"forceConsistentCasingInFileNames": true,
+		"declaration": true,
+		"noEmit": true
+	},
+	"references": [{ "path": "foo" }, { "path": "bar" }],
+	"files": []
+}
