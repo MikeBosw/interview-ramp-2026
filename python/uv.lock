@@ -7,6 +7,7 @@ members = [
     "karpathy",
     "simplemind",
     "simplemind-app",
+    "simplemind-microgpt",
 ]
 
 [[package]]
@@ -189,6 +190,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
+
+[[package]]
+name = "simplemind-microgpt"
+version = "0.1.0"
+source = { editable = "simplemind/microgpt" }
 
 [[package]]
 name = "ty"
