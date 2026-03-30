@@ -10,7 +10,7 @@ REPO_BASE_DIR=$(
 )
 
 cd "${REPO_BASE_DIR}"
-export PATH="${REPO_BASE_DIR}/.venv/bin:$PATH"
+export PATH="${REPO_BASE_DIR}/python/.venv/bin:$PATH"
 ty --version >/dev/null ||
   (
     echo ""

@@ -38,7 +38,7 @@ repos:
     hooks:
       - id: local-ty
         name: local-ty
-        entry: "./pre-commit/ty"
+        entry: "./python/pre-commit/ty"
         language: system
         types: [ python ]
         # restrict to one run per commit (per the docs)
@@ -46,17 +46,17 @@ repos:
         verbose: true
       - id: local-typescript
         name: local-typescript
-        entry: "./pre-commit/typescript"
+        entry: "./python/pre-commit/typescript"
         language: system
         files: ^javascript/.*\.ts$
         # restrict to one run per commit (per the docs)
         require_serial: true
         verbose: true
-- repo: local
+  - repo: local
     hooks:
       - id: ban-function-imports
         name: ban-function-imports
-        entry: "./pre-commit/ban-function-imports"
+        entry: "./python/pre-commit/ban-function-imports"
         language: system
         pass_filenames: false
         files: ^python/.*\.py$
@@ -66,7 +66,7 @@ repos:
     hooks:
       - id: check-ignore-justifications
         name: check-ignore-justifications
-        entry: "./pre-commit/check-ignore-justifications"
+        entry: "./python/pre-commit/check-ignore-justifications"
         language: system
         pass_filenames: false
         files: ^python/|^javascript/
@@ -76,7 +76,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: "./pre-commit/pytest"
+        entry: "./python/pre-commit/pytest"
         language: system
         pass_filenames: false
         always_run: true
