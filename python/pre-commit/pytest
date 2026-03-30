@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Pre-commit hook that runs only the tests affected by staged changes."""
+"""Pre-commit hook that runs only the tests affected by staged changes.
+
+Discovers tests colocated with workspace members (e.g. simplemind/microgpt/tests/).
+"""
 
 import os
 import subprocess
 import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent))
-import test_scope  # noqa: E402 — sys.path must be extended before importing local module
 
 
 def _repo_root() -> Path:
@@ -30,63 +30,30 @@ def _staged_files() -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
-def _is_full_run_trigger(path: str) -> bool:
-    if path in test_scope.FULL_RUN_TRIGGERS:
-        return True
-    return path.startswith("python/tests/") and not path.endswith("_test.py")
-
-
-def _has_test_subdirs(directory: Path) -> bool:
-    """Returns True if any immediate subdirectory contains *_test.py files."""
-    return any(
-        child.is_dir() and any(child.glob("*_test.py"))
-        for child in directory.iterdir()
-        if not child.name.startswith("__")
-    )
-
-
-def _convention_test_dir(path: str, repo_root: Path) -> str | None:
-    """Returns the deepest matching test directory for a source file, or None.
-
-    When no exact-depth match exists, falls back to shallower directories only
-    if they are "flat" (no child directories containing tests). This prevents a
-    change in e.g. micromanager/docsend/ from triggering every test under
-    tests/micromanager/.
-    """
-    if not path.startswith("python/"):
-        return None
-    if path.startswith("python/tests/") and path.endswith("_test.py"):
-        return str(Path(path[len("python/") :]).parent) + "/"
-    rel = path[len("python/") :]
-    parts = Path(rel).parent.parts
-    for depth in range(len(parts), 0, -1):
-        prefix = "/".join(parts[:depth])
-        candidate = repo_root / "python" / "tests" / prefix
-        if not candidate.is_dir():
+def _find_workspace_test_dirs(repo_root: Path) -> dict[str, Path]:
+    """Returns {prefix: tests_dir} for each directory under python/ that has a tests/ subdirectory."""
+    result: dict[str, Path] = {}
+    python_dir = repo_root / "python"
+    for group in python_dir.iterdir():
+        if not group.is_dir() or group.name.startswith("."):
             continue
-        if depth == len(parts):
-            return f"tests/{prefix}/"
-        # Fallback: skip directories that organize tests into subdirectories,
-        # since running the whole directory would include unrelated submodules
-        if _has_test_subdirs(candidate):
-            continue
-        return f"tests/{prefix}/"
-    return None
+        for member in group.iterdir():
+            if not member.is_dir():
+                continue
+            tests_dir = member / "tests"
+            if tests_dir.is_dir():
+                prefix = f"python/{group.name}/{member.name}/"
+                result[prefix] = tests_dir
+    return result
 
 
-def _triggered_test_dirs(staged: list[str], repo_root: Path) -> set[str]:
-    triggered: set[str] = set()
+def _triggered_test_dirs(staged: list[str], repo_root: Path) -> set[Path]:
+    workspace_tests = _find_workspace_test_dirs(repo_root)
+    triggered: set[Path] = set()
     for path in staged:
-        test_dir = _convention_test_dir(path, repo_root)
-        if test_dir:
-            triggered.add(test_dir)
-        if path.startswith("pre-commit/"):
-            triggered.add("tests/pre_commit/")
-    for test_path, trigger_paths in test_scope.EXTRA_TRIGGERS.items():
-        for trigger in trigger_paths:
-            if any(s == trigger or s.startswith(trigger.rstrip("/") + "/") for s in staged):
-                triggered.add(test_path)
-                break
+        for prefix, tests_dir in workspace_tests.items():
+            if path.startswith(prefix):
+                triggered.add(tests_dir)
     return triggered
 
 
@@ -96,17 +63,12 @@ def main() -> None:
     env = {**os.environ, "PATH": f"{venv_bin}:{os.environ.get('PATH', '')}"}
     staged = _staged_files()
 
-    for path in staged:
-        if _is_full_run_trigger(path):
-            os.chdir(repo_root / "python")
-            sys.exit(subprocess.run(["pytest"], env=env).returncode)
-
     triggered = _triggered_test_dirs(staged, repo_root)
     if not triggered:
         sys.exit(0)
 
     os.chdir(repo_root / "python")
-    sys.exit(subprocess.run(["pytest", *sorted(triggered)], env=env).returncode)
+    sys.exit(subprocess.run(["pytest", *sorted(str(d) for d in triggered)], env=env).returncode)
 
 
 if __name__ == "__main__":
