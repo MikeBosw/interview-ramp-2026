@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+
+set -eu
+
+HERE=$(dirname "$0")
+REPO_BASE_DIR=$(
+  cd "${HERE}"
+  unset GIT_DIR
+  git rev-parse --show-toplevel
+)
+
+cd "${REPO_BASE_DIR}/javascript"
+
+export PATH="$HOME/.bun/bin:$PATH"
+
+bun --version >/dev/null 2>&1 ||
+  (
+    echo ""
+    echo ""
+    echo "==============================================================================="
+    echo "   Please install bun: curl -fsSL https://bun.sh/install | bash"
+    echo "==============================================================================="
+    false
+  )
+
+bunx tsc --noEmit
+
+set +eu

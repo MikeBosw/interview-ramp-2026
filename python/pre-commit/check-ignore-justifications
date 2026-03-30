@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Pre-commit hook that rejects bare ignore directives without inline justifications.
+
+Only inspects added lines from the staged diff, so pre-existing legacy suppressions
+in unmodified files are never flagged.
+"""
+
+import re
+import subprocess
+import sys
+
+_BARE_NOQA = re.compile(r'#\s*noqa(\s*:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?\s*$')
+_BARE_TYPE_IGNORE = re.compile(r'#\s*type:\s*ignore(\[[\w, -]+\])?\s*$')
+_BARE_ESLINT_LINE = re.compile(r'//\s*eslint-disable-line\s*$')
+_BARE_ESLINT_NEXT = re.compile(r'//\s*eslint-disable-next-line\s*$')
+
+_PATTERNS: list[re.Pattern[str]] = [
+    _BARE_NOQA,
+    _BARE_TYPE_IGNORE,
+    _BARE_ESLINT_LINE,
+    _BARE_ESLINT_NEXT,
+]
+
+_CHECKED_EXTENSIONS = {'.py', '.ts', '.js'}
+
+
+def find_violations(diff_text: str) -> list[tuple[str, int, str]]:
+    """Parses unified diff text and finds bare ignore directives in added lines.
+
+    Only inspects files with extensions in _CHECKED_EXTENSIONS (e.g. not .md).
+    Returns (file_path, line_number, line_content) tuples for each violation.
+    """
+    violations: list[tuple[str, int, str]] = []
+    current_file = ''
+    current_line = 0
+    check_current_file = False
+    for raw_line in diff_text.splitlines():
+        if raw_line.startswith('+++ b/'):
+            current_file = raw_line[6:]
+            _, _, ext = current_file.rpartition('.')
+            check_current_file = f'.{ext}' in _CHECKED_EXTENSIONS
+        elif raw_line.startswith('@@'):
+            match = re.search(r'\+(\d+)', raw_line)
+            if match:
+                current_line = int(match.group(1)) - 1
+        elif raw_line.startswith('+') and not raw_line.startswith('+++'):
+            current_line += 1
+            if not check_current_file:
+                continue
+            content = raw_line[1:]
+            for pattern in _PATTERNS:
+                if pattern.search(content):
+                    violations.append((current_file, current_line, content.rstrip()))
+                    break
+        elif raw_line.startswith(' '):
+            current_line += 1
+    return violations
+
+
+def main() -> None:
+    result = subprocess.run(
+        ['git', 'diff', '--cached', '--unified=0'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    violations = find_violations(result.stdout)
+    if not violations:
+        return
+    print('you included an ignore directive. are you sure it is needed? if so, can the code be reworked to avoid this '
+          'ignore? if not, include an inline justification:')
+    for file, line_num, content in violations:
+        print(f'  {file}:{line_num}: {content.strip()}')
+    print()
+    print('include not just the specific rule, but also a justification whose truthfulness you have manually verified:')
+    print('  python:  # noqa: E501 — reason foo bar reason woo')
+    print('           # type: ignore[arg-type] — ty infers bool; SQLAlchemy returns ColumnElement at runtime')
+    print('           # pyright: ignore[reportUnknownMemberType] — importlib type stubs are incomplete"')
+    print('  js/ts:   // eslint-disable-line rule-name — reason lol wat reason yup')
+    sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

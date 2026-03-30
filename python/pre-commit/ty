@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+set -eu
+
+HERE=$(dirname "$0")
+REPO_BASE_DIR=$(
+  cd "${HERE}"
+  unset GIT_DIR
+  git rev-parse --show-toplevel
+)
+
+cd "${REPO_BASE_DIR}"
+export PATH="${REPO_BASE_DIR}/.venv/bin:$PATH"
+ty --version >/dev/null ||
+  (
+    echo ""
+    echo ""
+    echo "==============================================================================="
+    echo "   Please activate your venv, run uv sync, and retry."
+    echo "==============================================================================="
+    false
+  )
+cd python
+ty check .
+
+set +eu

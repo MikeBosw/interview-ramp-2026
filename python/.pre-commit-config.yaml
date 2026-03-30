@@ -1,0 +1,84 @@
+# Cf. https://pre-commit.com and https://pre-commit.com/hooks.html
+files: ^python/|^javascript/|^frontend/|requirements.txt
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+      # -   id: check-ast <-- covered by Black
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-json
+        exclude: 'tsconfig\.json$'
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: name-tests-test
+        exclude: 'fixtures\.py$|generate_test_db\.py$'
+      - id: pretty-format-json
+        args: [ "--autofix" ]
+        exclude: '.*[.]ipynb|tsconfig\.json$'
+      - id: requirements-txt-fixer
+      - id: sort-simple-yaml
+      - id: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.12.7
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
+        args: [ "--line-length=120" ]
+  - repo: local
+    hooks:
+      - id: local-ty
+        name: local-ty
+        entry: "./pre-commit/ty"
+        language: system
+        types: [ python ]
+        # restrict to one run per commit (per the docs)
+        require_serial: true
+        verbose: true
+      - id: local-typescript
+        name: local-typescript
+        entry: "./pre-commit/typescript"
+        language: system
+        files: ^javascript/.*\.ts$
+        # restrict to one run per commit (per the docs)
+        require_serial: true
+        verbose: true
+- repo: local
+    hooks:
+      - id: ban-function-imports
+        name: ban-function-imports
+        entry: "./pre-commit/ban-function-imports"
+        language: system
+        pass_filenames: false
+        files: ^python/.*\.py$
+        require_serial: true
+        verbose: true
+  - repo: local
+    hooks:
+      - id: check-ignore-justifications
+        name: check-ignore-justifications
+        entry: "./pre-commit/check-ignore-justifications"
+        language: system
+        pass_filenames: false
+        files: ^python/|^javascript/
+        require_serial: true
+        verbose: true
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: "./pre-commit/pytest"
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+        verbose: true
