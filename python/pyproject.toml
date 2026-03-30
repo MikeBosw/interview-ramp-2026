@@ -52,7 +52,8 @@ unused-ignore-comment = "error"
 unused-type-ignore-comment = "error"
 useless-overload-body = "error"
 
-[tool.ty.check]
+
+[tool.ty.terminal]
 error-on-warning = true
 
 [tool.mypy]

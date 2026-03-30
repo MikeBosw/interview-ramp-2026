@@ -40,7 +40,7 @@ def _import_lines_inside_functions(source: str) -> dict[int, str]:
 def _staged_contents(path: str) -> str:
     """Returns the staged (index) contents of a file."""
     result = subprocess.run(
-        ['git', 'show', f':{path}'],
+        ["git", "show", f":{path}"],
         capture_output=True,
         text=True,
         check=True,
@@ -51,28 +51,29 @@ def _staged_contents(path: str) -> str:
 def _added_lines_from_diff(diff_text: str) -> dict[str, set[int]]:
     """Parses unified diff and returns {file: set of added line numbers} for .py files under python/."""
     added: dict[str, set[int]] = {}
-    current_file = ''
+    current_file = ""
     current_line = 0
     for raw_line in diff_text.splitlines():
-        if raw_line.startswith('+++ b/'):
+        if raw_line.startswith("+++ b/"):
             current_file = raw_line[6:]
-            if not (current_file.startswith('python/') and current_file.endswith('.py')):
-                current_file = ''
-        elif raw_line.startswith('@@') and current_file:
-            match = re.search(r'\+(\d+)', raw_line)
+            if not (current_file.startswith("python/") and current_file.endswith(".py")):
+                current_file = ""
+        elif raw_line.startswith("@@") and current_file:
+            match = re.search(r"\+(\d+)", raw_line)
             if match:
                 current_line = int(match.group(1)) - 1
-        elif raw_line.startswith('+') and not raw_line.startswith('+++'):
+        elif raw_line.startswith("+") and not raw_line.startswith("+++"):
             current_line += 1
             if current_file:
                 added.setdefault(current_file, set()).add(current_line)
-        elif raw_line.startswith(' '):
+        elif raw_line.startswith(" "):
             current_line += 1
     return added
 
 
 def find_violations(
-    diff_text: str, read_source: Callable[[str], str],
+    diff_text: str,
+    read_source: Callable[[str], str],
 ) -> list[tuple[str, int, str]]:
     """Finds newly added import statements inside function bodies.
 
@@ -91,7 +92,7 @@ def find_violations(
 
 def main() -> None:
     result = subprocess.run(
-        ['git', 'diff', '--cached', '--unified=0'],
+        ["git", "diff", "--cached", "--unified=0"],
         capture_output=True,
         text=True,
         check=True,
@@ -99,11 +100,11 @@ def main() -> None:
     violations = find_violations(result.stdout, _staged_contents)
     if not violations:
         return
-    print('imports inside functions are banned — move them to the top of the module or fix the circular import:')
+    print("imports inside functions are banned — move them to the top of the module or fix the circular import:")
     for filepath, line_num, content in violations:
-        print(f'  {filepath}:{line_num}: {content}')
+        print(f"  {filepath}:{line_num}: {content}")
     sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
