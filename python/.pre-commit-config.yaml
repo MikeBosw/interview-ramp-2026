@@ -97,4 +97,4 @@ repos:
         always_run: true
         require_serial: true
         verbose: true
-        stages: [ post-commit ]
+        stages: [ pre-push ]
