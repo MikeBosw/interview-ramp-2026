@@ -9,6 +9,15 @@ Everything else is just efficiency.
 import math  # math.log, math.exp
 import os  # os.path.exists
 import random  # random.seed, random.choices, random.gauss, random.shuffle
+import sys
+from dataclasses import dataclass
+from typing import Callable
+
+
+@dataclass(frozen=True)
+class Emission:
+    value: str
+    end: str = "\n"
 
 
 # Let there be Autograd to recursively apply the chain rule through a computation graph
@@ -138,7 +147,7 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
     return logits
 
 
-def main():
+def main(emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
     random.seed(42)  # Let there be order among chaos
 
     # Let there be a Dataset `docs`: list[str] of documents (e.g. a list of names)
@@ -149,13 +158,13 @@ def main():
         urllib.request.urlretrieve(names_url, "input.txt")
     docs = [line.strip() for line in open("input.txt") if line.strip()]
     random.shuffle(docs)
-    print(f"num docs: {len(docs)}")
+    emit(f"num docs: {len(docs)}")
 
     # Let there be a Tokenizer to translate strings to sequences of integers ("tokens") and back
     uchars = sorted(set("".join(docs)))  # unique characters in the dataset become token ids 0..n-1
     BOS = len(uchars)  # token id for a special Beginning of Sequence (BOS) token
     vocab_size = len(uchars) + 1  # total number of unique tokens, +1 is for BOS
-    print(f"vocab size: {vocab_size}")
+    emit(f"vocab size: {vocab_size}")
 
     # Initialize the parameters, to store the knowledge of the model
     n_layer = 1  # depth of the transformer neural network (number of layers)
@@ -177,7 +186,7 @@ def main():
         state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
         state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
     params = [p for mat in state_dict.values() for row in mat for p in row]  # flatten params into a single list[Value]
-    print(f"num params: {len(params)}")
+    emit(f"num params: {len(params)}")
 
     # Let there be Adam, the blessed optimizer and its buffers
     learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8
@@ -216,11 +225,11 @@ def main():
             p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)
             p.grad = 0
 
-        print(f"step {step + 1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r")
+        print(f"step {step + 1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r", file=sys.stderr)
 
     # Inference: may the model babble back to us
     temperature = 0.5  # in (0, 1], control the "creativity" of generated text, low to high
-    print("\n--- inference (new, hallucinated names) ---")
+    emit("\n--- inference (new, hallucinated names) ---")
     for sample_idx in range(20):
         keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
         token_id = BOS
@@ -232,7 +241,7 @@ def main():
             if token_id == BOS:
                 break
             sample.append(uchars[token_id])
-        print(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
+        emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
 
 
 if __name__ == "__main__":
