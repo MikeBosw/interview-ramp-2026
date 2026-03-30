@@ -22,6 +22,15 @@ def test__microgpt__output_matches_reference_output() -> None:
 
 
 @pytest.mark.slow
+def test__microgpt__output_matches_reference_output_fuller() -> None:
+    vals_s: list[str] = []
+    vals_k: list[str] = []
+    smain(50, emitter(vals_s))
+    kmain(50, emitter(vals_k))
+    assert vals_s == vals_k
+
+
+@pytest.mark.slow
 def test__precondition__reference_output_matches_known_reference_output() -> None:
     vals_k: list[str] = []
     kmain(100, emitter(vals_k))
