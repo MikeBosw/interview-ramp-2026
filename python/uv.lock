@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "karpathy", editable = "simplemind/karpathy" }]
+requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
 
 [[package]]
 name = "cfgv"
@@ -59,7 +59,7 @@ wheels = [
 [[package]]
 name = "karpathy"
 version = "0.1.0"
-source = { editable = "simplemind/karpathy" }
+source = { editable = "simplemind/reference" }
 
 [[package]]
 name = "nodeenv"
@@ -179,7 +179,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "app", editable = "simplemind/app" },
-    { name = "karpathy", editable = "simplemind/karpathy" },
+    { name = "karpathy", editable = "simplemind/reference" },
 ]
 
 [package.metadata.requires-dev]
