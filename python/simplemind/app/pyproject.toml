@@ -1,0 +1,11 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "SimpleMind application entry point"
+requires-python = ">=3.14"
+dependencies = [
+    "karpathy",
+]
+
+[tool.uv.sources]
+karpathy = { workspace = true }

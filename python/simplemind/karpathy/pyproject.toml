@@ -1,0 +1,6 @@
+[project]
+name = "karpathy"
+version = "0.1.0"
+description = "Karpathy-inspired implementations"
+requires-python = ">=3.14"
+dependencies = []
