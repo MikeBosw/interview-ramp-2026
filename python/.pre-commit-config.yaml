@@ -1,4 +1,5 @@
 # Cf. https://pre-commit.com and https://pre-commit.com/hooks.html
+default_stages: [ pre-commit ]
 files: ^python/|^javascript/|^frontend/|^rust/|requirements.txt
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
