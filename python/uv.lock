@@ -4,21 +4,10 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
-    "app",
     "karpathy",
     "simplemind",
+    "simplemind-app",
 ]
-
-[[package]]
-name = "app"
-version = "0.1.0"
-source = { editable = "simplemind/app" }
-dependencies = [
-    { name = "karpathy" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
 
 [[package]]
 name = "cfgv"
@@ -164,8 +153,8 @@ name = "simplemind"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "app" },
     { name = "karpathy" },
+    { name = "simplemind-app" },
 ]
 
 [package.dev-dependencies]
@@ -178,8 +167,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "app", editable = "simplemind/app" },
     { name = "karpathy", editable = "simplemind/reference" },
+    { name = "simplemind-app", editable = "simplemind/app" },
 ]
 
 [package.metadata.requires-dev]
@@ -189,6 +178,17 @@ dev = [
     { name = "ty", specifier = ">=0.0.26" },
     { name = "zuban", specifier = ">=0.6.2" },
 ]
+
+[[package]]
+name = "simplemind-app"
+version = "0.1.0"
+source = { editable = "simplemind/app" }
+dependencies = [
+    { name = "karpathy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
 
 [[package]]
 name = "ty"
