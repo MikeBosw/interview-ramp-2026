@@ -11,7 +11,7 @@ REPO_BASE_DIR=$(
 
 cd "${REPO_BASE_DIR}"
 export PATH="${REPO_BASE_DIR}/python/.venv/bin:$PATH"
-ty --version >/dev/null ||
+ty --version >/dev/null && zuban --version >/dev/null ||
   (
     echo ""
     echo ""
@@ -22,5 +22,6 @@ ty --version >/dev/null ||
   )
 cd python
 ty check .
+zuban check
 
 set +eu

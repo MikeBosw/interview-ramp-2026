@@ -36,9 +36,9 @@ repos:
         args: [ "--line-length=120" ]
   - repo: local
     hooks:
-      - id: local-ty
-        name: local-ty
-        entry: "./python/pre-commit/ty"
+      - id: local-python-type-check
+        name: local-python-type-check
+        entry: "./python/pre-commit/ty-and-zuban"
         language: system
         types: [ python ]
         # restrict to one run per commit (per the docs)
