@@ -1,5 +1,5 @@
 # Cf. https://pre-commit.com and https://pre-commit.com/hooks.html
-files: ^python/|^javascript/|^frontend/|requirements.txt
+files: ^python/|^javascript/|^frontend/|^rust/|requirements.txt
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -42,6 +42,13 @@ repos:
         language: system
         types: [ python ]
         # restrict to one run per commit (per the docs)
+        require_serial: true
+        verbose: true
+      - id: local-rustfmt
+        name: local-rustfmt
+        entry: "./python/pre-commit/rustfmt"
+        language: system
+        types: [ rust ]
         require_serial: true
         verbose: true
       - id: local-typescript

@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+set -eu
+
+HERE=$(dirname "$0")
+REPO_BASE_DIR=$(
+  cd "${HERE}"
+  unset GIT_DIR
+  git rev-parse --show-toplevel
+)
+
+cd "${REPO_BASE_DIR}"
+
+rustfmt --version >/dev/null 2>&1 ||
+  (
+    echo ""
+    echo ""
+    echo "==============================================================================="
+    echo "   Please install rustfmt: rustup component add rustfmt"
+    echo "==============================================================================="
+    false
+  )
+
+rustfmt "$@"
+
+set +eu
