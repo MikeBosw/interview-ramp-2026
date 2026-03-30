@@ -1,0 +1,25 @@
+num docs: 32033
+vocab size: 27
+num params: 4192
+
+--- inference (new, hallucinated names) ---
+sample  1: jiesn
+sample  2: ais
+sample  3: kinaa
+sample  4: jaere
+sample  5: woeeae
+sample  6: jarie
+sample  7: xrnae
+sample  8: aisi
+sample  9: brimn
+sample 10: kaema
+sample 11: kuisa
+sample 12: klylan
+sample 13: lkrai
+sample 14: aamrli
+sample 15: haran
+sample 16: lilne
+sample 17: kameri
+sample 18: kavaeo
+sample 19: aoai
+sample 20: narien

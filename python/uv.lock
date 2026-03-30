@@ -222,6 +222,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
     { name = "zuban" },
@@ -236,6 +237,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.15.8" },
     { name = "ty", specifier = ">=0.0.26" },
     { name = "zuban", specifier = ">=0.6.2" },
@@ -256,16 +258,6 @@ requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
 name = "simplemind-microgpt"
 version = "0.1.0"
 source = { virtual = "simplemind/microgpt" }
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
 
 [[package]]
 name = "ty"
