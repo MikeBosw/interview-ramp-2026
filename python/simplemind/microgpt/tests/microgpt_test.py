@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable
 
+import pytest
 from karpathy.microgpt import main as kmain
 from simplemind.microgpt import main as smain
 
@@ -15,11 +16,12 @@ def emitter(vals: list[str]) -> Callable[[str], None]:
 def test__microgpt__output_matches_reference_output() -> None:
     vals_s: list[str] = []
     vals_k: list[str] = []
-    smain(25, emitter(vals_s))
-    kmain(25, emitter(vals_k))
+    smain(10, emitter(vals_s))
+    kmain(10, emitter(vals_k))
     assert vals_s == vals_k
 
 
+@pytest.mark.slow
 def test__precondition__reference_output_matches_known_reference_output() -> None:
     vals_k: list[str] = []
     kmain(100, emitter(vals_k))

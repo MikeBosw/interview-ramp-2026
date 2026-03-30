@@ -89,3 +89,12 @@ repos:
         always_run: true
         require_serial: true
         verbose: true
+      - id: pytest-slow
+        name: pytest-slow
+        entry: "./python/pre-commit/pytest-slow"
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+        verbose: true
+        stages: [ post-commit ]

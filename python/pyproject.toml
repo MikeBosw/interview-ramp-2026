@@ -25,6 +25,12 @@ members = ["simplemind/*"]
 simplemind-app = { workspace = true }
 karpathy = { workspace = true }
 
+[tool.pytest.ini_options]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: marks tests as slow (excluded by default, run with: pytest -m slow)",
+]
+
 [tool.ty.rules]
 # Promote default-ignore rules to error
 division-by-zero = "error"
