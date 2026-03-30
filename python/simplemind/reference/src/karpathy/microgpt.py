@@ -147,7 +147,7 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
     return logits
 
 
-def main(emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
+def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
     random.seed(42)  # Let there be order among chaos
 
     # Let there be a Dataset `docs`: list[str] of documents (e.g. a list of names)
@@ -194,8 +194,7 @@ def main(emit: Callable[[str], None] = lambda emission: print(emission)) -> None
     v = [0.0] * len(params)  # second moment buffer
 
     # Repeat in sequence
-    num_steps = 1000  # number of training steps
-    for step in range(num_steps):
+    for step in range(num_training_steps):
         # Take single document, tokenize it, surround it with BOS special token on both sides
         doc = docs[step % len(docs)]
         tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
@@ -216,7 +215,7 @@ def main(emit: Callable[[str], None] = lambda emission: print(emission)) -> None
         loss.backward()
 
         # Adam optimizer update: update the model parameters based on the corresponding gradients
-        lr_t = learning_rate * (1 - step / num_steps)  # linear learning rate decay
+        lr_t = learning_rate * (1 - step / num_training_steps)  # linear learning rate decay
         for i, p in enumerate(params):
             m[i] = beta1 * m[i] + (1 - beta1) * p.grad
             v[i] = beta2 * v[i] + (1 - beta2) * p.grad**2
@@ -225,7 +224,7 @@ def main(emit: Callable[[str], None] = lambda emission: print(emission)) -> None
             p.data -= lr_t * m_hat / (v_hat**0.5 + eps_adam)
             p.grad = 0
 
-        print(f"step {step + 1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end="\r", file=sys.stderr)
+        print(f"step {step + 1:4d} / {num_training_steps:4d} | loss {loss.data:.4f}", end="\r", file=sys.stderr)
 
     # Inference: may the model babble back to us
     temperature = 0.5  # in (0, 1], control the "creativity" of generated text, low to high
