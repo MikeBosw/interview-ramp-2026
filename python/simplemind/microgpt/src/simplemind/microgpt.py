@@ -105,8 +105,7 @@ class Value:
                 child.grad += local_grad * v.grad
 
 
-StateDict = dict[str, Matrix[Value]]
-ImmStateDict = Mapping[str, ImmMatrix[Value]]
+State = Mapping[str, ImmMatrix[Value]]
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
@@ -130,19 +129,18 @@ def rmsnorm(x: list[Value]) -> list[Value]:
 
 class Gpt:
     def __init__(self, n_layer: int) -> None:
-        self.keys: list[Matrix[Value]] = [[] for _ in range(n_layer)]
-        self.values: list[Matrix[Value]] = [[] for _ in range(n_layer)]
+        self.n_layer = n_layer
+        self._keys_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
+        self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
 
-    def train(
-        self, token_id: int, pos_id: int, state_dict: ImmStateDict, n_layer: int, n_head: int, head_dim: int
-    ) -> list[Value]:
-        keys, values = self.keys, self.values
+    def train(self, token_id: int, pos_id: int, state_dict: State, n_head: int, head_dim: int) -> list[Value]:
+        keys, values = self._keys_mut, self._values_mut
         tok_emb = state_dict["wte"][token_id]  # token embedding
         pos_emb = state_dict["wpe"][pos_id]  # position embedding
         x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
         x = rmsnorm(x)  # note: not redundant due to backward pass via the residual connection
 
-        for li in range(n_layer):
+        for li in range(self.n_layer):
             # 1) Multi-head Attention block
             x_residual = x
             x = rmsnorm(x)
@@ -203,7 +201,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     block_size = 16  # maximum context length of the attention window (note: the longest name is 15 characters)
     n_head = 4  # number of attention heads
     head_dim = n_embd // n_head  # derived dimension of each head
-    state_dict: ImmStateDict = blank_state(block_size, n_embd, n_layer, vocab_size)
+    state_dict: State = blank_state(block_size, n_embd, n_layer, vocab_size)
     params: Sequence[Value] = [
         p for mat in state_dict.values() for row in mat for p in row
     ]  # flatten params into a single list[Value]
@@ -226,7 +224,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         losses = []
         for pos_id in range(n):
             token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
-            logits = gpt.train(token_id, pos_id, state_dict, n_layer, n_head, head_dim)
+            logits = gpt.train(token_id, pos_id, state_dict, n_head, head_dim)
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
@@ -255,7 +253,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         token_id = BOS
         sample = []
         for pos_id in range(block_size):
-            logits = gpt.train(token_id, pos_id, state_dict, n_layer, n_head, head_dim)
+            logits = gpt.train(token_id, pos_id, state_dict, n_head, head_dim)
             probs = softmax([logit / temperature for logit in logits])
             token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
             if token_id == BOS:
@@ -264,20 +262,20 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
 
 
-def blank_state(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> ImmStateDict:
-    state_dict_mut: StateDict = {
+def blank_state(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> State:
+    state: dict[str, Matrix[Value]] = {
         "wte": matrix(vocab_size, n_embd),
         "wpe": matrix(block_size, n_embd),
         "lm_head": matrix(vocab_size, n_embd),
     }
     for i in range(n_layer):
-        state_dict_mut[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
-        state_dict_mut[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
-        state_dict_mut[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
-        state_dict_mut[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
-        state_dict_mut[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
-        state_dict_mut[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
-    return state_dict_mut
+        state[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
+        state[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
+        state[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
+        state[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
+        state[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
+        state[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
+    return state
 
 
 def matrix(nout: int, nin: int) -> Matrix[Value]:
