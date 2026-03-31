@@ -29,10 +29,14 @@ class Value:
     __slots__ = ("data", "grad", "_children", "_local_grads")  # Python optimization for memory usage
 
     def __init__(self, data: float, children: Iterable[Value] = (), local_grads: Iterable[float] = ()):
-        self.data = data  # scalar value of this node calculated during forward pass
-        self.grad: float = 0.0  # derivative of the loss w.r.t. this node, calculated in backward pass
-        self._children = children  # children of this node in the computation graph
-        self._local_grads = local_grads  # local derivative of this node w.r.t. its children
+        self.data = data
+        """scalar value of this node calculated during forward pass"""
+        self.grad: float = 0.0
+        """derivative of the loss w.r.t. this node, calculated in backward pass"""
+        self._children = children
+        """children of this node in the computation graph"""
+        self._local_grads = local_grads
+        """local derivative of this node w.r.t. its children"""
 
     @classmethod
     def of(cls, other: Value | float | int) -> Value:
@@ -174,16 +178,16 @@ def rmsnorm(x: list[Value]) -> list[Value]:
 
 class Gpt:
     def __init__(self, n_layer: int, n_head: int, head_dim: int) -> None:
-        #: Number of transformer layers (sequential attention + MLP blocks).
         self.n_layer = n_layer
-        #: Number of attention heads per layer.
+        """number of transformer layers (sequential attention + MLP blocks)."""
         self.n_head = n_head
-        #: Dimension of each attention head (n_embd // n_head).
+        """number of attention heads per layer."""
         self.head_dim = head_dim
-        #: KV cache: accumulated key projections per layer, appended at each step.
+        """dimension of each attention head (n_embd // n_head)."""
         self._keys_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
-        #: KV cache: accumulated value projections per layer, appended at each step.
+        """KV cache: accumulated key projections per layer, appended at each step."""
         self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
+        """KV cache: accumulated value projections per layer, appended at each step."""
 
     def step(self, token_id: int, pos_id: int, state: State) -> list[Value]:
         n_head, head_dim = self.n_head, self.head_dim
@@ -256,7 +260,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     n_head = 4  # number of attention heads
     head_dim = n_embd // n_head  # derived dimension of each head
     state = State.new(block_size, n_embd, n_layer, vocab_size)
-    params: Sequence[Value] = state.params()
+    params = state.params()
     emit(f"num params: {len(params)}")
 
     # Let there be Adam, the blessed optimizer and its buffers
