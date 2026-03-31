@@ -24,19 +24,20 @@ class Emission:
     end: str = "\n"
 
 
-# Let there be Autograd to recursively apply the chain rule through a computation graph
 class Value:
-    __slots__ = ("data", "grad", "_children", "_local_grads")  # Python optimization for memory usage
+    """autograd node: recursively applies the chain rule through a computation graph."""
+
+    __slots__ = ("data", "grad", "_children", "_local_grads")
 
     def __init__(self, data: float, children: Iterable[Value] = (), local_grads: Iterable[float] = ()):
         self.data = data
-        """scalar value of this node calculated during forward pass"""
+        """scalar value of this node, calculated during the forward pass."""
         self.grad: float = 0.0
-        """derivative of the loss w.r.t. this node, calculated in backward pass"""
+        """derivative of the loss w.r.t. this node, calculated in the backward pass."""
         self._children = children
-        """children of this node in the computation graph"""
+        """parent nodes in the computation graph."""
         self._local_grads = local_grads
-        """local derivative of this node w.r.t. its children"""
+        """local derivative of this node w.r.t. each of its children."""
 
     @classmethod
     def of(cls, other: Value | float | int) -> Value:
@@ -111,12 +112,20 @@ class Value:
 
 @dataclass(frozen=True)
 class Layer:
+    """Weight matrices for a single transformer layer."""
+
     attn_wq: ImmMatrix[Value]
+    """attention query projection weights"""
     attn_wk: ImmMatrix[Value]
+    """attention key projection weights"""
     attn_wv: ImmMatrix[Value]
+    """attention value projection weights"""
     attn_wo: ImmMatrix[Value]
+    """attention output projection weights"""
     mlp_fc1: ImmMatrix[Value]
+    """MLP first (expansion) layer weights"""
     mlp_fc2: ImmMatrix[Value]
+    """MLP second (contraction) layer weights"""
 
     def values(self) -> list[ImmMatrix[Value]]:
         return [self.attn_wq, self.attn_wk, self.attn_wv, self.attn_wo, self.mlp_fc1, self.mlp_fc2]
@@ -124,10 +133,16 @@ class Layer:
 
 @dataclass(frozen=True)
 class State:
+    """All learnable parameters of the model."""
+
     wte: ImmMatrix[Value]
+    """token embedding matrix (vocab_size x n_embd)"""
     wpe: ImmMatrix[Value]
+    """position embedding matrix (block_size x n_embd)"""
     lm_head: ImmMatrix[Value]
+    """language model head: projects hidden state to logits over vocab (vocab_size x n_embd)"""
     layers: Sequence[Layer]
+    """transformer layers, applied sequentially"""
 
     @staticmethod
     def new(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> State:
@@ -153,41 +168,44 @@ class State:
         return [self.wte, self.wpe, self.lm_head, *layer_matrices]
 
     def params(self) -> Sequence[Value]:
-        """Flattens params into a single list[Value]"""
+        """Flattens all weight matrices into a single list of scalar parameters."""
         return [p for mat in self._as_matrices() for row in mat for p in row]
 
 
-# Define the model architecture: a function mapping tokens and parameters to logits over what comes next
-# Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
 def linear(x: list[Value], w: ImmMatrix[Value]) -> list[Value]:
+    """Linear transformation (matrix-vector multiply, no bias)."""
     return [Value.of(sum(wi * xi for wi, xi in zip(wo, x))) for wo in w]
 
 
 def softmax(logits: list[Value]) -> list[Value]:
+    """Converts logits to a probability distribution (numerically stable)."""
     max_val = max(val.data for val in logits)
     exps = [(val - max_val).exp() for val in logits]
     total = sum(exps)
     return [e / total for e in exps]
 
 
-def rmsnorm(x: list[Value]) -> list[Value]:
+def root_mean_square_norm(x: list[Value]) -> list[Value]:
+    """Root-mean-square layer normalization (replaces layernorm, no learnable params)."""
     ms = sum(xi * xi for xi in x) / len(x)
     scale = (ms + 1e-5) ** -0.5
     return [xi * scale for xi in x]
 
 
 class Gpt:
+    """GPT-2-style transformer. Differs from GPT-2: rmsnorm instead of layernorm, no biases, ReLU instead of GeLU."""
+
     def __init__(self, n_layer: int, n_head: int, head_dim: int) -> None:
         self.n_layer = n_layer
-        """number of transformer layers (sequential attention + MLP blocks)."""
+        """number of transformer layers (sequential attention + MLP blocks)"""
         self.n_head = n_head
-        """number of attention heads per layer."""
+        """number of attention heads per layer"""
         self.head_dim = head_dim
-        """dimension of each attention head (n_embd // n_head)."""
+        """dimension of each attention head (n_embd // n_head)"""
         self._keys_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
-        """KV cache: accumulated key projections per layer, appended at each step."""
+        """accumulated key projections per layer, appended at each step"""
         self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
-        """KV cache: accumulated value projections per layer, appended at each step."""
+        """accumulated value projections per layer, appended at each step"""
 
     def step(self, token_id: int, pos_id: int, state: State) -> list[Value]:
         n_head, head_dim = self.n_head, self.head_dim
@@ -195,12 +213,12 @@ class Gpt:
         tok_emb = state.wte[token_id]  # token embedding
         pos_emb = state.wpe[pos_id]  # position embedding
         x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
-        x = rmsnorm(x)  # note: not redundant due to backward pass via the residual connection
+        x = root_mean_square_norm(x)  # note: not redundant due to backward pass via the residual connection
 
         for li in range(self.n_layer):
             # 1) Multi-head Attention block
             x_residual = x
-            x = rmsnorm(x)
+            x = root_mean_square_norm(x)
             q = linear(x, state.layers[li].attn_wq)
             k = linear(x, state.layers[li].attn_wk)
             v = linear(x, state.layers[li].attn_wv)
@@ -225,7 +243,7 @@ class Gpt:
             x = [a + b for a, b in zip(x, x_residual)]
             # 2) MLP block
             x_residual = x
-            x = rmsnorm(x)
+            x = root_mean_square_norm(x)
             x = linear(x, state.layers[li].mlp_fc1)
             x = [xi.relu() for xi in x]
             x = linear(x, state.layers[li].mlp_fc2)
@@ -319,7 +337,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
 
 
 def load_docs() -> list[str]:
-    """Returns the dataset: a list[str] of documents (e.g. a list of names)"""
+    """returns the dataset: a list of documents (e.g. names), downloading if needed."""
     if not os.path.exists("./var/input.txt"):
         names_url = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
         urllib.request.urlretrieve(names_url, "./var/input.txt")
