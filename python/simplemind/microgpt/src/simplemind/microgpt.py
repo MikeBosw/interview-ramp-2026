@@ -126,55 +126,56 @@ def rmsnorm(x: list[Value]) -> list[Value]:
     return [xi * scale for xi in x]
 
 
-def gpt(
-    token_id: int,
-    pos_id: int,
-    keys: list[Matrix[Value]],
-    values: list[Matrix[Value]],
-    state_dict: StateDict,
-    n_layer: int,
-    n_head: int,
-    head_dim: int,
-) -> list[Value]:
-    tok_emb = state_dict["wte"][token_id]  # token embedding
-    pos_emb = state_dict["wpe"][pos_id]  # position embedding
-    x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
-    x = rmsnorm(x)  # note: not redundant due to backward pass via the residual connection
+class Gpt:
+    def __init__(self, n_layer: int) -> None:
+        self.keys: list[Matrix[Value]] = [[] for _ in range(n_layer)]
+        self.values: list[Matrix[Value]] = [[] for _ in range(n_layer)]
 
-    for li in range(n_layer):
-        # 1) Multi-head Attention block
-        x_residual = x
-        x = rmsnorm(x)
-        q = linear(x, state_dict[f"layer{li}.attn_wq"])
-        k = linear(x, state_dict[f"layer{li}.attn_wk"])
-        v = linear(x, state_dict[f"layer{li}.attn_wv"])
-        key_for_layer = keys[li]
-        key_for_layer.append(k)
-        values[li].append(v)
-        x_attn = []
-        for h in range(n_head):
-            hs = h * head_dim
-            q_h = q[hs : hs + head_dim]
-            k_h = [ki[hs : hs + head_dim] for ki in key_for_layer]
-            v_h = [vi[hs : hs + head_dim] for vi in values[li]]
-            attn_logits = [
-                Value.of(sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5) for t in range(len(k_h))
-            ]
-            attn_weights = softmax(attn_logits)
-            head_out = [Value.of(sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))) for j in range(head_dim)]
-            x_attn.extend(head_out)
-        x = linear(x_attn, state_dict[f"layer{li}.attn_wo"])
-        x = [a + b for a, b in zip(x, x_residual)]
-        # 2) MLP block
-        x_residual = x
-        x = rmsnorm(x)
-        x = linear(x, state_dict[f"layer{li}.mlp_fc1"])
-        x = [xi.relu() for xi in x]
-        x = linear(x, state_dict[f"layer{li}.mlp_fc2"])
-        x = [a + b for a, b in zip(x, x_residual)]
+    def train(
+        self, token_id: int, pos_id: int, state_dict: StateDict, n_layer: int, n_head: int, head_dim: int
+    ) -> list[Value]:
+        keys, values = self.keys, self.values
+        tok_emb = state_dict["wte"][token_id]  # token embedding
+        pos_emb = state_dict["wpe"][pos_id]  # position embedding
+        x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
+        x = rmsnorm(x)  # note: not redundant due to backward pass via the residual connection
 
-    logits = linear(x, state_dict["lm_head"])
-    return logits
+        for li in range(n_layer):
+            # 1) Multi-head Attention block
+            x_residual = x
+            x = rmsnorm(x)
+            q = linear(x, state_dict[f"layer{li}.attn_wq"])
+            k = linear(x, state_dict[f"layer{li}.attn_wk"])
+            v = linear(x, state_dict[f"layer{li}.attn_wv"])
+            key_for_layer = keys[li]
+            key_for_layer.append(k)
+            values[li].append(v)
+            x_attn = []
+            for h in range(n_head):
+                hs = h * head_dim
+                q_h = q[hs : hs + head_dim]
+                k_h = [ki[hs : hs + head_dim] for ki in key_for_layer]
+                v_h = [vi[hs : hs + head_dim] for vi in values[li]]
+                attn_logits = [
+                    Value.of(sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5) for t in range(len(k_h))
+                ]
+                attn_weights = softmax(attn_logits)
+                head_out = [
+                    Value.of(sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))) for j in range(head_dim)
+                ]
+                x_attn.extend(head_out)
+            x = linear(x_attn, state_dict[f"layer{li}.attn_wo"])
+            x = [a + b for a, b in zip(x, x_residual)]
+            # 2) MLP block
+            x_residual = x
+            x = rmsnorm(x)
+            x = linear(x, state_dict[f"layer{li}.mlp_fc1"])
+            x = [xi.relu() for xi in x]
+            x = linear(x, state_dict[f"layer{li}.mlp_fc2"])
+            x = [a + b for a, b in zip(x, x_residual)]
+
+        logits = linear(x, state_dict["lm_head"])
+        return logits
 
 
 def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
@@ -228,13 +229,11 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         n = min(block_size, len(tokens) - 1)
 
         # Forward the token sequence through the model, building up the computation graph all the way to the loss
-        keys: list[Matrix[Value]]
-        values: list[Matrix[Value]]
-        keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+        gpt = Gpt(n_layer)
         losses = []
         for pos_id in range(n):
             token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
-            logits = gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim)
+            logits = gpt.train(token_id, pos_id, state_dict, n_layer, n_head, head_dim)
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
@@ -259,11 +258,11 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     temperature = 0.5  # in (0, 1], control the "creativity" of generated text, low to high
     emit("\n--- inference (new, hallucinated names) ---")
     for sample_idx in range(20):
-        keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+        gpt = Gpt(n_layer)
         token_id = BOS
         sample = []
         for pos_id in range(block_size):
-            logits = gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim)
+            logits = gpt.train(token_id, pos_id, state_dict, n_layer, n_head, head_dim)
             probs = softmax([logit / temperature for logit in logits])
             token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
             if token_id == BOS:
