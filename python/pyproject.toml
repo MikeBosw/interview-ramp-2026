@@ -33,6 +33,9 @@ markers = [
     "slow: marks tests as slow (excluded by default, run with: pytest -m slow)",
 ]
 
+[tool.ty.src]
+exclude = ["simplemind/reference/"]
+
 [tool.ty.environment]
 extra-paths = [
     "simplemind/app/src",
@@ -82,7 +85,6 @@ files = [
     "simplemind/app/src",
     "simplemind/microgpt/src",
     "simplemind/microgpt/tests",
-    "simplemind/reference/src",
     "pre-commit",
 ]
 strict = true
