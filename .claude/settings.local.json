@@ -5,7 +5,8 @@
       "Bash(/Users/hadius/code/git/MikeBosw/simplemind/python/.venv/bin/ty --help)",
       "Bash(/Users/hadius/code/git/MikeBosw/simplemind/python/.venv/bin/ty explain:*)",
       "Bash(/Users/hadius/code/git/MikeBosw/simplemind/python/.venv/bin/ty version:*)",
-      "Bash(/Users/hadius/code/git/MikeBosw/simplemind/python/.venv/bin/zuban --version 2>&1)"
+      "Bash(/Users/hadius/code/git/MikeBosw/simplemind/python/.venv/bin/zuban --version 2>&1)",
+      "Bash(.venv/bin/zuban check:*)"
     ]
   }
 }

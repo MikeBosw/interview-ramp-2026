@@ -31,6 +31,13 @@ markers = [
     "slow: marks tests as slow (excluded by default, run with: pytest -m slow)",
 ]
 
+[tool.ty.environment]
+extra-paths = [
+    "simplemind/app/src",
+    "simplemind/microgpt/src",
+    "simplemind/reference/src",
+]
+
 [tool.ty.rules]
 # Promote default-ignore rules to error
 division-by-zero = "error"
@@ -64,6 +71,16 @@ useless-overload-body = "error"
 error-on-warning = true
 
 [tool.mypy]
+mypy_path = [
+    "simplemind/app/src",
+    "simplemind/microgpt/src",
+    "simplemind/reference/src",
+]
+files = [
+    "simplemind/*/src",
+    "simplemind/*/tests",
+    "pre-commit",
+]
 strict = true
 warn-unreachable = true
 disallow-any-explicit = true
