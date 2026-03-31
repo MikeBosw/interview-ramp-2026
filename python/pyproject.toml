@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "simplemind-app",
+    "simplemind-microgpt",
     "karpathy",
 ]
 
@@ -23,6 +24,7 @@ members = ["simplemind/*"]
 
 [tool.uv.sources]
 simplemind-app = { workspace = true }
+simplemind-microgpt = { workspace = true }
 karpathy = { workspace = true }
 
 [tool.pytest.ini_options]
@@ -77,8 +79,10 @@ mypy_path = [
     "simplemind/reference/src",
 ]
 files = [
-    "simplemind/*/src",
-    "simplemind/*/tests",
+    "simplemind/app/src",
+    "simplemind/microgpt/src",
+    "simplemind/microgpt/tests",
+    "simplemind/reference/src",
     "pre-commit",
 ]
 strict = true

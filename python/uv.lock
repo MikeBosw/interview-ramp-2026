@@ -217,6 +217,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "karpathy" },
     { name = "simplemind-app" },
+    { name = "simplemind-microgpt" },
 ]
 
 [package.dev-dependencies]
@@ -232,6 +233,7 @@ dev = [
 requires-dist = [
     { name = "karpathy", editable = "simplemind/reference" },
     { name = "simplemind-app", editable = "simplemind/app" },
+    { name = "simplemind-microgpt", editable = "simplemind/microgpt" },
 ]
 
 [package.metadata.requires-dev]
@@ -257,7 +259,7 @@ requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
 [[package]]
 name = "simplemind-microgpt"
 version = "0.1.0"
-source = { virtual = "simplemind/microgpt" }
+source = { editable = "simplemind/microgpt" }
 
 [[package]]
 name = "ty"
