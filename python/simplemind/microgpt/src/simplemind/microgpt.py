@@ -128,12 +128,20 @@ def rmsnorm(x: list[Value]) -> list[Value]:
 
 
 class Gpt:
-    def __init__(self, n_layer: int) -> None:
+    def __init__(self, n_layer: int, n_head: int, head_dim: int) -> None:
+        #: Number of transformer layers (sequential attention + MLP blocks).
         self.n_layer = n_layer
+        #: Number of attention heads per layer.
+        self.n_head = n_head
+        #: Dimension of each attention head (n_embd // n_head).
+        self.head_dim = head_dim
+        #: KV cache: accumulated key projections per layer, appended at each step.
         self._keys_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
+        #: KV cache: accumulated value projections per layer, appended at each step.
         self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
 
-    def step(self, token_id: int, pos_id: int, state_dict: State, n_head: int, head_dim: int) -> list[Value]:
+    def step(self, token_id: int, pos_id: int, state_dict: State) -> list[Value]:
+        n_head, head_dim = self.n_head, self.head_dim
         keys, values = self._keys_mut, self._values_mut
         tok_emb = state_dict["wte"][token_id]  # token embedding
         pos_emb = state_dict["wpe"][pos_id]  # position embedding
@@ -179,20 +187,21 @@ class Gpt:
 
 
 def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
-    random.seed(42)  # Let there be order among chaos
-
     # Let there be a Dataset `docs`: list[str] of documents (e.g. a list of names)
-    if not os.path.exists("./var/input.txt"):
-        names_url = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
-        urllib.request.urlretrieve(names_url, "./var/input.txt")
-    docs = [line.strip() for line in open("./var/input.txt") if line.strip()]
+    docs = load_docs()
+    # Let there be order among chaos
+    random.seed(42)
+    # Let there be orderly chaos
     random.shuffle(docs)
     emit(f"num docs: {len(docs)}")
 
     # Let there be a Tokenizer to translate strings to sequences of integers ("tokens") and back
-    uchars = sorted(set("".join(docs)))  # unique characters in the dataset become token ids 0..n-1
-    BOS = len(uchars)  # token id for a special Beginning of Sequence (BOS) token
-    vocab_size = len(uchars) + 1  # total number of unique tokens, +1 is for BOS
+    # unique characters in the dataset become token ids 0..n-1
+    unique_chars = sorted(set("".join(docs)))
+    # token id for a special Beginning of Sequence (BOS) token
+    bos_delimiter_id = len(unique_chars)
+    # total number of unique tokens, +1 is for BOS
+    vocab_size = len(unique_chars) + 1
     emit(f"vocab size: {vocab_size}")
 
     # Initialize the parameters, to store the knowledge of the model
@@ -216,15 +225,15 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     for step in range(num_training_steps):
         # Take single document, tokenize it, surround it with BOS special token on both sides
         doc = docs[step % len(docs)]
-        tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
-        n = min(block_size, len(tokens) - 1)
+        doc_tokens = [bos_delimiter_id] + [unique_chars.index(ch) for ch in doc] + [bos_delimiter_id]
+        n = min(block_size, len(doc_tokens) - 1)
 
-        # Forward the token sequence through the model, building up the computation graph all the way to the loss
-        gpt = Gpt(n_layer)
+        # Thread the token sequence forward through the model, building up the computation graph all the way to the loss
+        gpt = Gpt(n_layer, n_head, head_dim)
         losses = []
         for pos_id in range(n):
-            token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
-            logits = gpt.step(token_id, pos_id, state_dict, n_head, head_dim)
+            token_id, target_id = doc_tokens[pos_id], doc_tokens[pos_id + 1]
+            logits = gpt.step(token_id, pos_id, state_dict)
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
@@ -249,17 +258,26 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     temperature = 0.5  # in (0, 1], control the "creativity" of generated text, low to high
     emit("\n--- inference (new, hallucinated names) ---")
     for sample_idx in range(20):
-        gpt = Gpt(n_layer)
-        token_id = BOS
+        gpt = Gpt(n_layer, n_head, head_dim)
+        token_id = bos_delimiter_id
         sample = []
         for pos_id in range(block_size):
-            logits = gpt.step(token_id, pos_id, state_dict, n_head, head_dim)
+            logits = gpt.step(token_id, pos_id, state_dict)
             probs = softmax([logit / temperature for logit in logits])
             token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
-            if token_id == BOS:
+            if token_id == bos_delimiter_id:
                 break
-            sample.append(uchars[token_id])
+            sample.append(unique_chars[token_id])
         emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
+
+
+def load_docs() -> list[str]:
+    """Returns the dataset: a list[str] of documents (e.g. a list of names)"""
+    if not os.path.exists("./var/input.txt"):
+        names_url = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
+        urllib.request.urlretrieve(names_url, "./var/input.txt")
+    docs = [line.strip() for line in open("./var/input.txt") if line.strip()]
+    return docs
 
 
 def blank_state(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> State:
