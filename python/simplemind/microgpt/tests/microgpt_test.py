@@ -38,3 +38,12 @@ def test__precondition__reference_output_matches_known_reference_output() -> Non
     norm_vals_k = [k for k in [k.strip() for k in vals_k] if k]
     norm_vals_ref = [r for r in [r.strip() for r in vals_ref] if r]
     assert norm_vals_k == norm_vals_ref
+
+
+@pytest.mark.ultra_slow
+def test__precondition__output_matches_entire_reference_output() -> None:
+    vals_s: list[str] = []
+    vals_k: list[str] = []
+    smain(1000, emitter(vals_s))
+    kmain(1000, emitter(vals_k))
+    assert vals_s == vals_k

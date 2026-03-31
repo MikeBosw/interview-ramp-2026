@@ -28,9 +28,10 @@ simplemind-microgpt = { workspace = true }
 karpathy = { workspace = true }
 
 [tool.pytest.ini_options]
-addopts = "-m 'not slow'"
+addopts = "-m 'not slow and not ultra_slow'"
 markers = [
     "slow: marks tests as slow (excluded by default, run with: pytest -m slow)",
+    "ultra_slow: marks tests as very slow (excluded by default, run with: pytest -m ultra_slow)",
 ]
 
 [tool.ty.src]
