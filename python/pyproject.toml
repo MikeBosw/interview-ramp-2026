@@ -75,6 +75,9 @@ useless-overload-body = "error"
 [tool.ty.terminal]
 error-on-warning = true
 
+# Note: a root-level pyproject.toml symlink points here so that zuban's LSP
+# server (which receives the repo root as its workspace from IntelliJ) can
+# find this config.
 [tool.mypy]
 mypy_path = [
     "simplemind/app/src",

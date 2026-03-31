@@ -12,7 +12,7 @@ import random  # random.seed, random.choices, random.gauss, random.shuffle
 import sys
 import urllib.request
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterable
 
 
 @dataclass(frozen=True)
@@ -25,58 +25,70 @@ class Emission:
 class Value:
     __slots__ = ("data", "grad", "_children", "_local_grads")  # Python optimization for memory usage
 
-    def __init__(self, data, children=(), local_grads=()):
+    def __init__(self, data: float, children: Iterable[Value] = (), local_grads: Iterable[float] = ()):
         self.data = data  # scalar value of this node calculated during forward pass
-        self.grad = 0  # derivative of the loss w.r.t. this node, calculated in backward pass
+        self.grad: float = 0.0  # derivative of the loss w.r.t. this node, calculated in backward pass
         self._children = children  # children of this node in the computation graph
         self._local_grads = local_grads  # local derivative of this node w.r.t. its children
 
-    def __add__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
+    @classmethod
+    def of(cls, other: Value | float | int) -> Value:
+        if isinstance(other, Value):
+            return other
+        if isinstance(other, int):
+            return Value(float(other))
+        if isinstance(other, float):
+            return Value(other)
+        raise ValueError(f"Cannot convert {type(other)} to Value: {other}")
+
+    def __add__(self, other_value: Value | float) -> Value:
+        other = other_value if isinstance(other_value, Value) else Value(other_value)
         return Value(self.data + other.data, (self, other), (1, 1))
 
-    def __mul__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
+    def __mul__(self, other_value: Value | float) -> Value:
+        other = other_value if isinstance(other_value, Value) else Value(other_value)
         return Value(self.data * other.data, (self, other), (other.data, self.data))
 
-    def __pow__(self, other):
-        return Value(self.data**other, (self,), (other * self.data ** (other - 1),))
+    def __pow__(self, other: Value | float) -> Value:
+        other_data = other.data if isinstance(other, Value) else other
+        local_grad: float = other_data * self.data ** (other_data - 1)
+        return Value(self.data**other_data, (self,), (local_grad,))
 
-    def log(self):
+    def log(self) -> Value:
         return Value(math.log(self.data), (self,), (1 / self.data,))
 
-    def exp(self):
+    def exp(self) -> Value:
         return Value(math.exp(self.data), (self,), (math.exp(self.data),))
 
-    def relu(self):
+    def relu(self) -> Value:
         return Value(max(0, self.data), (self,), (float(self.data > 0),))
 
-    def __neg__(self):
+    def __neg__(self) -> Value:
         return self * -1
 
-    def __radd__(self, other):
+    def __radd__(self, other: Value | float) -> Value:
         return self + other
 
-    def __sub__(self, other):
+    def __sub__(self, other: Value | float) -> Value:
         return self + (-other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Value | float) -> Value:
         return other + (-self)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Value | float) -> Value:
         return self * other
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Value | float) -> Value:
         return self * other**-1
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Value | float) -> Value:
         return other * self**-1
 
-    def backward(self):
-        topo = []
-        visited = set()
+    def backward(self) -> None:
+        topo: list[Value] = []
+        visited: set[Value] = set()
 
-        def build_topo(v):
+        def build_topo(v: Value) -> None:
             if v not in visited:
                 visited.add(v)
                 for child in v._children:
@@ -90,26 +102,38 @@ class Value:
                 child.grad += local_grad * v.grad
 
 
+StateDict = dict[str, list[list[Value]]]
+
+
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
 # Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
-def linear(x, w):
-    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
+def linear(x: list[Value], w: list[list[Value]]) -> list[Value]:
+    return [Value.of(sum(wi * xi for wi, xi in zip(wo, x))) for wo in w]
 
 
-def softmax(logits):
+def softmax(logits: list[Value]) -> list[Value]:
     max_val = max(val.data for val in logits)
     exps = [(val - max_val).exp() for val in logits]
     total = sum(exps)
     return [e / total for e in exps]
 
 
-def rmsnorm(x):
+def rmsnorm(x: list[Value]) -> list[Value]:
     ms = sum(xi * xi for xi in x) / len(x)
     scale = (ms + 1e-5) ** -0.5
     return [xi * scale for xi in x]
 
 
-def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
+def gpt(
+    token_id: int,
+    pos_id: int,
+    keys: list[list[list[Value]]],
+    values: list[list[list[Value]]],
+    state_dict: StateDict,
+    n_layer: int,
+    n_head: int,
+    head_dim: int,
+) -> list[Value]:
     tok_emb = state_dict["wte"][token_id]  # token embedding
     pos_emb = state_dict["wpe"][pos_id]  # position embedding
     x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
@@ -122,17 +146,20 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
         q = linear(x, state_dict[f"layer{li}.attn_wq"])
         k = linear(x, state_dict[f"layer{li}.attn_wk"])
         v = linear(x, state_dict[f"layer{li}.attn_wv"])
-        keys[li].append(k)
+        key_for_layer = keys[li]
+        key_for_layer.append(k)
         values[li].append(v)
         x_attn = []
         for h in range(n_head):
             hs = h * head_dim
             q_h = q[hs : hs + head_dim]
-            k_h = [ki[hs : hs + head_dim] for ki in keys[li]]
+            k_h = [ki[hs : hs + head_dim] for ki in key_for_layer]
             v_h = [vi[hs : hs + head_dim] for vi in values[li]]
-            attn_logits = [sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5 for t in range(len(k_h))]
+            attn_logits = [
+                Value.of(sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5) for t in range(len(k_h))
+            ]
             attn_weights = softmax(attn_logits)
-            head_out = [sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h))) for j in range(head_dim)]
+            head_out = [Value.of(sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))) for j in range(head_dim)]
             x_attn.extend(head_out)
         x = linear(x_attn, state_dict[f"layer{li}.attn_wo"])
         x = [a + b for a, b in zip(x, x_residual)]
@@ -148,7 +175,7 @@ def gpt(token_id, pos_id, keys, values, state_dict, n_layer, n_head, head_dim):
     return logits
 
 
-def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
+def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda emission: print(emission)) -> None:
     random.seed(42)  # Let there be order among chaos
 
     # Let there be a Dataset `docs`: list[str] of documents (e.g. a list of names)
@@ -171,7 +198,7 @@ def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission:
     block_size = 16  # maximum context length of the attention window (note: the longest name is 15 characters)
     n_head = 4  # number of attention heads
     head_dim = n_embd // n_head  # derived dimension of each head
-    state_dict = {
+    state_dict: StateDict = {
         "wte": matrix(vocab_size, n_embd),
         "wpe": matrix(block_size, n_embd),
         "lm_head": matrix(vocab_size, n_embd),
@@ -199,6 +226,8 @@ def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission:
         n = min(block_size, len(tokens) - 1)
 
         # Forward the token sequence through the model, building up the computation graph all the way to the loss
+        keys: list[list[list[Value]]]
+        values: list[list[list[Value]]]
         keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
         losses = []
         for pos_id in range(n):
@@ -207,7 +236,7 @@ def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission:
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
-        loss = (1 / n) * sum(losses)  # final average loss over the document sequence. May yours be low.
+        loss = Value.of((1 / n) * sum(losses))  # final average loss over the document sequence. May yours be low.
 
         # Backward the loss, calculating the gradients with respect to all model parameters
         loss.backward()
@@ -241,7 +270,7 @@ def main(num_training_steps=1000, emit: Callable[[str], None] = lambda emission:
         emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
 
 
-def matrix(nout, nin) -> list[list[Value]]:
+def matrix(nout: int, nin: int) -> list[list[Value]]:
     return [[Value(random.gauss(0, 0.08)) for _ in range(nin)] for _ in range(nout)]
 
 
