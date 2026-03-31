@@ -133,7 +133,7 @@ class Gpt:
         self._keys_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
         self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
 
-    def train(self, token_id: int, pos_id: int, state_dict: State, n_head: int, head_dim: int) -> list[Value]:
+    def step(self, token_id: int, pos_id: int, state_dict: State, n_head: int, head_dim: int) -> list[Value]:
         keys, values = self._keys_mut, self._values_mut
         tok_emb = state_dict["wte"][token_id]  # token embedding
         pos_emb = state_dict["wpe"][pos_id]  # position embedding
@@ -224,7 +224,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         losses = []
         for pos_id in range(n):
             token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
-            logits = gpt.train(token_id, pos_id, state_dict, n_head, head_dim)
+            logits = gpt.step(token_id, pos_id, state_dict, n_head, head_dim)
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
@@ -253,7 +253,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         token_id = BOS
         sample = []
         for pos_id in range(block_size):
-            logits = gpt.train(token_id, pos_id, state_dict, n_head, head_dim)
+            logits = gpt.step(token_id, pos_id, state_dict, n_head, head_dim)
             probs = softmax([logit / temperature for logit in logits])
             token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
             if token_id == BOS:
