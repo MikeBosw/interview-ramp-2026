@@ -14,6 +14,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
+type Matrix[T] = list[list[T]]
+
 
 @dataclass(frozen=True)
 class Emission:
@@ -102,12 +104,12 @@ class Value:
                 child.grad += local_grad * v.grad
 
 
-StateDict = dict[str, list[list[Value]]]
+StateDict = dict[str, Matrix[Value]]
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
 # Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
-def linear(x: list[Value], w: list[list[Value]]) -> list[Value]:
+def linear(x: list[Value], w: Matrix[Value]) -> list[Value]:
     return [Value.of(sum(wi * xi for wi, xi in zip(wo, x))) for wo in w]
 
 
@@ -127,8 +129,8 @@ def rmsnorm(x: list[Value]) -> list[Value]:
 def gpt(
     token_id: int,
     pos_id: int,
-    keys: list[list[list[Value]]],
-    values: list[list[list[Value]]],
+    keys: list[Matrix[Value]],
+    values: list[Matrix[Value]],
     state_dict: StateDict,
     n_layer: int,
     n_head: int,
@@ -226,8 +228,8 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         n = min(block_size, len(tokens) - 1)
 
         # Forward the token sequence through the model, building up the computation graph all the way to the loss
-        keys: list[list[list[Value]]]
-        values: list[list[list[Value]]]
+        keys: list[Matrix[Value]]
+        values: list[Matrix[Value]]
         keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
         losses = []
         for pos_id in range(n):
@@ -270,7 +272,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
 
 
-def matrix(nout: int, nin: int) -> list[list[Value]]:
+def matrix(nout: int, nin: int) -> Matrix[Value]:
     return [[Value(random.gauss(0, 0.08)) for _ in range(nin)] for _ in range(nout)]
 
 
