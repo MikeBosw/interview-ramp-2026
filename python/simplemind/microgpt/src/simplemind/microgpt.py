@@ -12,7 +12,7 @@ import random  # random.seed, random.choices, random.gauss, random.shuffle
 import sys
 import urllib.request
 from dataclasses import dataclass
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Sequence
 
 type Matrix[T] = list[list[T]]
 type ImmMatrix[T] = Sequence[Sequence[T]]
@@ -105,7 +105,52 @@ class Value:
                 child.grad += local_grad * v.grad
 
 
-State = Mapping[str, ImmMatrix[Value]]
+@dataclass(frozen=True)
+class Layer:
+    attn_wq: ImmMatrix[Value]
+    attn_wk: ImmMatrix[Value]
+    attn_wv: ImmMatrix[Value]
+    attn_wo: ImmMatrix[Value]
+    mlp_fc1: ImmMatrix[Value]
+    mlp_fc2: ImmMatrix[Value]
+
+    def values(self) -> list[ImmMatrix[Value]]:
+        return [self.attn_wq, self.attn_wk, self.attn_wv, self.attn_wo, self.mlp_fc1, self.mlp_fc2]
+
+
+@dataclass(frozen=True)
+class State:
+    wte: ImmMatrix[Value]
+    wpe: ImmMatrix[Value]
+    lm_head: ImmMatrix[Value]
+    layers: Sequence[Layer]
+
+    @staticmethod
+    def new(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> State:
+        return State(
+            wte=matrix(vocab_size, n_embd),
+            wpe=matrix(block_size, n_embd),
+            lm_head=matrix(vocab_size, n_embd),
+            layers=[
+                Layer(
+                    attn_wq=matrix(n_embd, n_embd),
+                    attn_wk=matrix(n_embd, n_embd),
+                    attn_wv=matrix(n_embd, n_embd),
+                    attn_wo=matrix(n_embd, n_embd),
+                    mlp_fc1=matrix(4 * n_embd, n_embd),
+                    mlp_fc2=matrix(n_embd, 4 * n_embd),
+                )
+                for _ in range(n_layer)
+            ],
+        )
+
+    def _as_matrices(self) -> Sequence[ImmMatrix[Value]]:
+        layer_matrices: Sequence[ImmMatrix[Value]] = [m for layer in self.layers for m in layer.values()]
+        return [self.wte, self.wpe, self.lm_head, *layer_matrices]
+
+    def params(self) -> Sequence[Value]:
+        """Flattens params into a single list[Value]"""
+        return [p for mat in self._as_matrices() for row in mat for p in row]
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
@@ -140,11 +185,11 @@ class Gpt:
         #: KV cache: accumulated value projections per layer, appended at each step.
         self._values_mut: Sequence[Matrix[Value]] = [[] for _ in range(n_layer)]
 
-    def step(self, token_id: int, pos_id: int, state_dict: State) -> list[Value]:
+    def step(self, token_id: int, pos_id: int, state: State) -> list[Value]:
         n_head, head_dim = self.n_head, self.head_dim
         keys, values = self._keys_mut, self._values_mut
-        tok_emb = state_dict["wte"][token_id]  # token embedding
-        pos_emb = state_dict["wpe"][pos_id]  # position embedding
+        tok_emb = state.wte[token_id]  # token embedding
+        pos_emb = state.wpe[pos_id]  # position embedding
         x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
         x = rmsnorm(x)  # note: not redundant due to backward pass via the residual connection
 
@@ -152,9 +197,9 @@ class Gpt:
             # 1) Multi-head Attention block
             x_residual = x
             x = rmsnorm(x)
-            q = linear(x, state_dict[f"layer{li}.attn_wq"])
-            k = linear(x, state_dict[f"layer{li}.attn_wk"])
-            v = linear(x, state_dict[f"layer{li}.attn_wv"])
+            q = linear(x, state.layers[li].attn_wq)
+            k = linear(x, state.layers[li].attn_wk)
+            v = linear(x, state.layers[li].attn_wv)
             key_for_layer = keys[li]
             key_for_layer.append(k)
             values[li].append(v)
@@ -172,17 +217,17 @@ class Gpt:
                     Value.of(sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))) for j in range(head_dim)
                 ]
                 x_attn.extend(head_out)
-            x = linear(x_attn, state_dict[f"layer{li}.attn_wo"])
+            x = linear(x_attn, state.layers[li].attn_wo)
             x = [a + b for a, b in zip(x, x_residual)]
             # 2) MLP block
             x_residual = x
             x = rmsnorm(x)
-            x = linear(x, state_dict[f"layer{li}.mlp_fc1"])
+            x = linear(x, state.layers[li].mlp_fc1)
             x = [xi.relu() for xi in x]
-            x = linear(x, state_dict[f"layer{li}.mlp_fc2"])
+            x = linear(x, state.layers[li].mlp_fc2)
             x = [a + b for a, b in zip(x, x_residual)]
 
-        logits = linear(x, state_dict["lm_head"])
+        logits = linear(x, state.lm_head)
         return logits
 
 
@@ -210,10 +255,8 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     block_size = 16  # maximum context length of the attention window (note: the longest name is 15 characters)
     n_head = 4  # number of attention heads
     head_dim = n_embd // n_head  # derived dimension of each head
-    state_dict: State = blank_state(block_size, n_embd, n_layer, vocab_size)
-    params: Sequence[Value] = [
-        p for mat in state_dict.values() for row in mat for p in row
-    ]  # flatten params into a single list[Value]
+    state = State.new(block_size, n_embd, n_layer, vocab_size)
+    params: Sequence[Value] = state.params()
     emit(f"num params: {len(params)}")
 
     # Let there be Adam, the blessed optimizer and its buffers
@@ -233,7 +276,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         losses = []
         for pos_id in range(n):
             token_id, target_id = doc_tokens[pos_id], doc_tokens[pos_id + 1]
-            logits = gpt.step(token_id, pos_id, state_dict)
+            logits = gpt.step(token_id, pos_id, state)
             probs = softmax(logits)
             loss_t = -probs[target_id].log()
             losses.append(loss_t)
@@ -262,7 +305,7 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
         token_id = bos_delimiter_id
         sample = []
         for pos_id in range(block_size):
-            logits = gpt.step(token_id, pos_id, state_dict)
+            logits = gpt.step(token_id, pos_id, state)
             probs = softmax([logit / temperature for logit in logits])
             token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
             if token_id == bos_delimiter_id:
@@ -278,22 +321,6 @@ def load_docs() -> list[str]:
         urllib.request.urlretrieve(names_url, "./var/input.txt")
     docs = [line.strip() for line in open("./var/input.txt") if line.strip()]
     return docs
-
-
-def blank_state(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> State:
-    state: dict[str, Matrix[Value]] = {
-        "wte": matrix(vocab_size, n_embd),
-        "wpe": matrix(block_size, n_embd),
-        "lm_head": matrix(vocab_size, n_embd),
-    }
-    for i in range(n_layer):
-        state[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
-        state[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
-        state[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
-        state[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
-        state[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
-        state[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
-    return state
 
 
 def matrix(nout: int, nin: int) -> Matrix[Value]:
