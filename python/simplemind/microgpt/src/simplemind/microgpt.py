@@ -12,9 +12,10 @@ import random  # random.seed, random.choices, random.gauss, random.shuffle
 import sys
 import urllib.request
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Mapping, Sequence
 
 type Matrix[T] = list[list[T]]
+type ImmMatrix[T] = Sequence[Sequence[T]]
 
 
 @dataclass(frozen=True)
@@ -105,11 +106,12 @@ class Value:
 
 
 StateDict = dict[str, Matrix[Value]]
+ImmStateDict = Mapping[str, ImmMatrix[Value]]
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
 # Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
-def linear(x: list[Value], w: Matrix[Value]) -> list[Value]:
+def linear(x: list[Value], w: ImmMatrix[Value]) -> list[Value]:
     return [Value.of(sum(wi * xi for wi, xi in zip(wo, x))) for wo in w]
 
 
@@ -132,7 +134,7 @@ class Gpt:
         self.values: list[Matrix[Value]] = [[] for _ in range(n_layer)]
 
     def train(
-        self, token_id: int, pos_id: int, state_dict: StateDict, n_layer: int, n_head: int, head_dim: int
+        self, token_id: int, pos_id: int, state_dict: ImmStateDict, n_layer: int, n_head: int, head_dim: int
     ) -> list[Value]:
         keys, values = self.keys, self.values
         tok_emb = state_dict["wte"][token_id]  # token embedding
@@ -201,19 +203,10 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
     block_size = 16  # maximum context length of the attention window (note: the longest name is 15 characters)
     n_head = 4  # number of attention heads
     head_dim = n_embd // n_head  # derived dimension of each head
-    state_dict: StateDict = {
-        "wte": matrix(vocab_size, n_embd),
-        "wpe": matrix(block_size, n_embd),
-        "lm_head": matrix(vocab_size, n_embd),
-    }
-    for i in range(n_layer):
-        state_dict[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
-        state_dict[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
-        state_dict[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
-        state_dict[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
-        state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
-        state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
-    params = [p for mat in state_dict.values() for row in mat for p in row]  # flatten params into a single list[Value]
+    state_dict: ImmStateDict = blank_state(block_size, n_embd, n_layer, vocab_size)
+    params: Sequence[Value] = [
+        p for mat in state_dict.values() for row in mat for p in row
+    ]  # flatten params into a single list[Value]
     emit(f"num params: {len(params)}")
 
     # Let there be Adam, the blessed optimizer and its buffers
@@ -269,6 +262,22 @@ def main(num_training_steps: int = 1000, emit: Callable[[str], None] = lambda em
                 break
             sample.append(uchars[token_id])
         emit(f"sample {sample_idx + 1:2d}: {''.join(sample)}")
+
+
+def blank_state(block_size: int, n_embd: int, n_layer: int, vocab_size: int) -> ImmStateDict:
+    state_dict_mut: StateDict = {
+        "wte": matrix(vocab_size, n_embd),
+        "wpe": matrix(block_size, n_embd),
+        "lm_head": matrix(vocab_size, n_embd),
+    }
+    for i in range(n_layer):
+        state_dict_mut[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
+        state_dict_mut[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
+        state_dict_mut[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
+        state_dict_mut[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
+        state_dict_mut[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
+        state_dict_mut[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
+    return state_dict_mut
 
 
 def matrix(nout: int, nin: int) -> Matrix[Value]:
