@@ -1,13 +1,11 @@
 [project]
-name = "simplemind"
+name = "ramp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Ramp preliminary coding exercise"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "simplemind-app",
-    "simplemind-microgpt",
-    "karpathy",
+    "ramp-app",
 ]
 
 [dependency-groups]
@@ -20,12 +18,10 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["simplemind/*"]
+members = ["ramp/*"]
 
 [tool.uv.sources]
-simplemind-app = { workspace = true }
-simplemind-microgpt = { workspace = true }
-karpathy = { workspace = true }
+ramp-app = { workspace = true }
 
 [tool.pytest.ini_options]
 addopts = "-m 'not slow and not ultra_slow'"
@@ -35,13 +31,11 @@ markers = [
 ]
 
 [tool.ty.src]
-exclude = ["simplemind/reference/"]
+exclude = []
 
 [tool.ty.environment]
 extra-paths = [
-    "simplemind/app/src",
-    "simplemind/microgpt/src",
-    "simplemind/reference/src",
+    "ramp/app/src",
 ]
 
 [tool.ty.rules]
@@ -81,14 +75,10 @@ error-on-warning = true
 # find this config.
 [tool.mypy]
 mypy_path = [
-    "simplemind/app/src",
-    "simplemind/microgpt/src",
-    "simplemind/reference/src",
+    "ramp/app/src",
 ]
 files = [
-    "simplemind/app/src",
-    "simplemind/microgpt/src",
-    "simplemind/microgpt/tests",
+    "ramp/app/src",
     "pre-commit",
 ]
 strict = true

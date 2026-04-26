@@ -1,6 +1,6 @@
 [project]
-name = "karpathy"
+name = "ramp-app"
 version = "0.1.0"
-description = "Karpathy-inspired implementations"
+description = "Ramp application entry point"
 requires-python = ">=3.14"
 dependencies = []

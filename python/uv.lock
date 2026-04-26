@@ -4,10 +4,8 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
-    "karpathy",
-    "simplemind",
-    "simplemind-app",
-    "simplemind-microgpt",
+    "ramp",
+    "ramp-app",
 ]
 
 [[package]]
@@ -63,11 +61,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
 ]
-
-[[package]]
-name = "karpathy"
-version = "0.1.0"
-source = { editable = "simplemind/reference" }
 
 [[package]]
 name = "nodeenv"
@@ -186,6 +179,40 @@ wheels = [
 ]
 
 [[package]]
+name = "ramp"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ramp-app" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "ty" },
+    { name = "zuban" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ramp-app", editable = "ramp/app" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.15.8" },
+    { name = "ty", specifier = ">=0.0.26" },
+    { name = "zuban", specifier = ">=0.6.2" },
+]
+
+[[package]]
+name = "ramp-app"
+version = "0.1.0"
+source = { editable = "ramp/app" }
+
+[[package]]
 name = "ruff"
 version = "0.15.8"
 source = { registry = "https://pypi.org/simple" }
@@ -209,57 +236,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/a2/ef467cb77099062317154c63f234b8a7baf7cb690b99af760c5b68b9ee7f/ruff-0.15.8-py3-none-win_amd64.whl", hash = "sha256:04f79eff02a72db209d47d665ba7ebcad609d8918a134f86cb13dd132159fc89", size = 11743893, upload-time = "2026-03-26T18:39:25.01Z" },
     { url = "https://files.pythonhosted.org/packages/15/e2/77be4fff062fa78d9b2a4dea85d14785dac5f1d0c1fb58ed52331f0ebe28/ruff-0.15.8-py3-none-win_arm64.whl", hash = "sha256:cf891fa8e3bb430c0e7fac93851a5978fc99c8fa2c053b57b118972866f8e5f2", size = 11048175, upload-time = "2026-03-26T18:40:01.06Z" },
 ]
-
-[[package]]
-name = "simplemind"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "karpathy" },
-    { name = "simplemind-app" },
-    { name = "simplemind-microgpt" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "ty" },
-    { name = "zuban" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "karpathy", editable = "simplemind/reference" },
-    { name = "simplemind-app", editable = "simplemind/app" },
-    { name = "simplemind-microgpt", editable = "simplemind/microgpt" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=4.5.1" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "ruff", specifier = ">=0.15.8" },
-    { name = "ty", specifier = ">=0.0.26" },
-    { name = "zuban", specifier = ">=0.6.2" },
-]
-
-[[package]]
-name = "simplemind-app"
-version = "0.1.0"
-source = { editable = "simplemind/app" }
-dependencies = [
-    { name = "karpathy" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "karpathy", editable = "simplemind/reference" }]
-
-[[package]]
-name = "simplemind-microgpt"
-version = "0.1.0"
-source = { editable = "simplemind/microgpt" }
 
 [[package]]
 name = "ty"

@@ -1,5 +1,5 @@
 def main() -> None:
-    print("hello from simplemind")
+    print("hello from Ramp exercise")
 
 
 if __name__ == "__main__":
