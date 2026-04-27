@@ -1,6 +1,5 @@
 import asyncio
 import json
-import random
 from typing import cast
 
 from httpx import AsyncClient, HTTPStatusError
@@ -70,7 +69,9 @@ class Crawly:
                     return step_id  # <-- break first then return maybe?
                 all_new_steps.update([s for s in new_steps if s not in visited_step_ids])
             queue = [s for s in all_new_steps]
-        raise RuntimeError(f"maze has no exit: could be one of the {len(failed_steps)}/{len(visited_step_ids)} failed steps?")
+        raise RuntimeError(
+            f"maze has no exit: could be one of the {len(failed_steps)}/{len(visited_step_ids)} failed steps?"
+        )
 
 
 async def main() -> None:
