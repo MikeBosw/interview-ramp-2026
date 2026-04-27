@@ -39,7 +39,7 @@ repos:
     hooks:
       - id: local-python-type-check
         name: local-python-type-check
-        entry: "./python/pre-commit/ty-and-zuban"
+        entry: "./python/pre-commit/type-check"
         language: system
         types: [ python ]
         # restrict to one run per commit (per the docs)
