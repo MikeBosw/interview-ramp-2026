@@ -49,8 +49,8 @@ class Crawly:
             if res.status_code in [404, 200]:
                 break
             if res.status_code == 401:
-                blob = res.read().decode("UTF-8")
-                key_name = json.loads(blob)["header"]
+                text = res.read().decode("UTF-8")
+                key_name = json.loads(text)["header"]
                 if key_name in keys:
                     key_required = key_name
                     continue
