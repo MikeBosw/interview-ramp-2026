@@ -19,6 +19,7 @@ NEW=$1
 
 # 1) Replace content in tracked files that contain OLD.
 git ls-files -z | while IFS= read -r -d '' f; do
+  [ -L "$f" ] && continue  # skip symlinks; the target file is edited when iterated
   if grep -Iq "$OLD" "$f" 2>/dev/null; then
     sed -i '' "s/$OLD/$NEW/g" "$f"
   fi
